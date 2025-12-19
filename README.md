@@ -9,6 +9,7 @@
 <h3>Features</h3>
 
 - [x] [ChatGPT](https://github.com/D7EAD/liboai/tree/main/documentation/chat)
+- [x] [Responses API](https://platform.openai.com/docs/api-reference/responses/create)
 - [X] [Audio](https://github.com/D7EAD/liboai/tree/main/documentation/audio)
 - [X] [Azure](https://github.com/D7EAD/liboai/tree/main/documentation/azure)
 - [X] [Functions](https://platform.openai.com/docs/api-reference/chat/create)

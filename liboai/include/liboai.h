@@ -39,6 +39,7 @@
 #include "components/images.h"
 #include "components/models.h"
 #include "components/moderations.h"
+#include "components/responses.h"
 
 namespace liboai {
 	class OpenAI {
@@ -54,7 +55,8 @@ namespace liboai {
 				FineTune(std::make_unique<liboai::FineTunes>(root)),
 				Image(std::make_unique<liboai::Images>(root)),
 				Model(std::make_unique<liboai::Models>(root)),
-				Moderation(std::make_unique<liboai::Moderations>(root))
+				Moderation(std::make_unique<liboai::Moderations>(root)),
+				Responses(std::make_unique<liboai::Responses>(root))
 			{}
 			OpenAI(OpenAI const&) = delete;
 			OpenAI(OpenAI&&) = delete;
@@ -127,6 +129,12 @@ namespace liboai {
 					provides access to its OpenAI API endpoints.
 			*/
 			std::unique_ptr<liboai::Moderations> Moderation;
+
+			/*
+				@brief A pointer to the Responses component class that
+					provides access to its OpenAI API endpoints.
+			*/
+			std::unique_ptr<liboai::Responses> Responses;
 		
 		public:			
 			/*
