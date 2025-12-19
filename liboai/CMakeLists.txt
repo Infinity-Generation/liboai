@@ -40,6 +40,7 @@ set(COMPONENT_HEADERS_RELATIVE
   "include/components/images.h"
   "include/components/models.h"
   "include/components/moderations.h"
+  "include/components/responses.h"
 )
 
 make_absolute_paths(COMPONENT_HEADERS ${COMPONENT_HEADERS_RELATIVE})
@@ -57,6 +58,7 @@ set(COMPONENT_SOURCES_RELATIVE
   "components/images.cpp"
   "components/models.cpp"
   "components/moderations.cpp"
+  "components/responses.cpp"
 )
 
 make_absolute_paths(COMPONENT_SOURCES ${COMPONENT_SOURCES_RELATIVE})
