@@ -8,8 +8,39 @@ if(MSVC)
   set(CMAKE_DEBUG_POSTFIX "d")
 endif()
 
-find_package(nlohmann_json CONFIG REQUIRED)
-find_package(CURL REQUIRED)
+# When liboai is used as a vendored dependency (via add_subdirectory),
+# its install/export rules can break the parent build if its link
+# dependencies (eg. CURL::libcurl) are not part of liboai's export set.
+# Only enable install/export when building liboai as the top-level project.
+set(_LIBOAI_DEFAULT_INSTALL OFF)
+if(PROJECT_IS_TOP_LEVEL)
+  set(_LIBOAI_DEFAULT_INSTALL ON)
+endif()
+option(LIBOAI_INSTALL "Enable liboai install/export rules" ${_LIBOAI_DEFAULT_INSTALL})
+
+# Try to find nlohmann_json, but if not found, use a target if it exists
+# (common when nlohmann_json is provided by a parent project via add_subdirectory/add_library).
+if(TARGET nlohmann_json::nlohmann_json)
+  set(nlohmann_json_FOUND TRUE)
+elseif(TARGET nlohmann_json)
+  set(nlohmann_json_FOUND TRUE)
+  add_library(nlohmann_json::nlohmann_json ALIAS nlohmann_json)
+else()
+  find_package(nlohmann_json CONFIG QUIET)
+  if(NOT nlohmann_json_FOUND)
+    message(FATAL_ERROR "nlohmann_json not found and no nlohmann_json target exists")
+  endif()
+endif()
+
+# Try to find CURL, but if not found, use the vendored target if it exists
+if(TARGET CURL::libcurl)
+  set(CURL_FOUND TRUE)
+else()
+  find_package(CURL QUIET)
+  if(NOT CURL_FOUND)
+    message(FATAL_ERROR "CURL not found and CURL::libcurl target does not exist")
+  endif()
+endif()
 
 add_library(${PROJECT_NAME})
 
@@ -111,28 +142,30 @@ target_include_directories(${PROJECT_NAME}
     "$<INSTALL_INTERFACE:include>"
 )
 
-install(TARGETS ${PROJECT_NAME} DESTINATION lib EXPORT ${PROJECT_NAME}Targets)
-install(FILES ${HEADERS} DESTINATION "include")
-install(FILES ${COMPONENT_HEADERS} DESTINATION "include/components")
-install(FILES ${CORE_HEADERS} DESTINATION "include/core")
+if(LIBOAI_INSTALL)
+  install(TARGETS ${PROJECT_NAME} DESTINATION lib EXPORT ${PROJECT_NAME}Targets)
+  install(FILES ${HEADERS} DESTINATION "include")
+  install(FILES ${COMPONENT_HEADERS} DESTINATION "include/components")
+  install(FILES ${CORE_HEADERS} DESTINATION "include/core")
 
-configure_package_config_file("${CMAKE_CURRENT_SOURCE_DIR}/Config.cmake.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-  INSTALL_DESTINATION "lib/cmake/${PROJECT_NAME}"
-)
+  configure_package_config_file("${CMAKE_CURRENT_SOURCE_DIR}/Config.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+    INSTALL_DESTINATION "lib/cmake/${PROJECT_NAME}"
+  )
 
-write_basic_package_version_file(
-  "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
-  COMPATIBILITY AnyNewerVersion
-)
+  write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+    COMPATIBILITY AnyNewerVersion
+  )
 
-install(EXPORT ${PROJECT_NAME}Targets
-  FILE ${PROJECT_NAME}Targets.cmake
-  NAMESPACE oai::
-  DESTINATION "lib/cmake/${PROJECT_NAME}"
-)
-install(FILES
-  "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-  "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
-  DESTINATION "lib/cmake/${PROJECT_NAME}"
-)
+  install(EXPORT ${PROJECT_NAME}Targets
+    FILE ${PROJECT_NAME}Targets.cmake
+    NAMESPACE oai::
+    DESTINATION "lib/cmake/${PROJECT_NAME}"
+  )
+  install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+    DESTINATION "lib/cmake/${PROJECT_NAME}"
+  )
+endif()
