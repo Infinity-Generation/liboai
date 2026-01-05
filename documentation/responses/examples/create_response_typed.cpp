@@ -12,7 +12,7 @@ int main() {
         "Hello from the typed Responses API."
       );
 
-      std::cout << response << std::endl;
+      // std::cout << response << std::endl;
       // std::cout << response["choices"][0]["text"].get<std::string>() << std::endl;
       std::string output_text;
       if (response.raw_json.contains("output")) {
