@@ -213,3 +213,6 @@ int main() {
 <p>Each component interface found within <code>liboai::OpenAI</code> follows the same pattern found above. Whether you want to generate images, completions, or fine-tune models, the control flow should follow--or remain similar to--the above examples.
 
 For detailed examples regarding individual component interfaces, refer to the appropriate folder listed above.</p>
+
+<h3>Project Maintenance</h3>
+<p>Maintainers can find PR workflow notes in <a href="./maintenance">documentation/maintenance</a>.</p>
