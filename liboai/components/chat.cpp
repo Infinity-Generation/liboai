@@ -765,7 +765,37 @@ liboai::Response liboai::ChatCompletion::create(
 }
 
 liboai::FutureResponse liboai::ChatCompletion::create_async(const std::string& model, Conversation& conversation, std::optional<std::string> function_call, std::optional<float> temperature, std::optional<float> top_p, std::optional<uint16_t> n, std::optional<ChatStreamCallback> stream, std::optional<std::vector<std::string>> stop, std::optional<uint16_t> max_tokens, std::optional<float> presence_penalty, std::optional<float> frequency_penalty, std::optional<std::unordered_map<std::string, int8_t>> logit_bias, std::optional<std::string> user) const& noexcept(false) {
-	return std::async(std::launch::async, &liboai::ChatCompletion::create, this, model, std::ref(conversation), function_call, temperature, top_p, n, stream, stop, max_tokens, presence_penalty, frequency_penalty, logit_bias, user);
+    return std::async(
+		std::launch::async,
+		static_cast<liboai::Response(liboai::ChatCompletion::*)(
+			const std::string&,
+			Conversation&,
+			std::optional<std::string>,
+			std::optional<float>,
+			std::optional<float>,
+			std::optional<uint16_t>,
+			std::optional<ChatStreamCallback>,
+			std::optional<std::vector<std::string>>,
+			std::optional<uint16_t>,
+			std::optional<float>,
+			std::optional<float>,
+			std::optional<std::unordered_map<std::string, int8_t>>,
+			std::optional<std::string>
+		) const&>(&liboai::ChatCompletion::create),
+		this,
+		model,
+		std::ref(conversation),
+		function_call,
+		temperature,
+		top_p,
+		n,
+		stream,
+		stop,
+		max_tokens,
+		presence_penalty,
+		frequency_penalty,
+		logit_bias,
+		user);
 }
 
 liboai::FutureResponse liboai::ChatCompletion::create_async(
