@@ -11,6 +11,7 @@
 */
 
 #define _CRT_SECURE_NO_WARNINGS
+#define NOMINMAX
 
 #include <iostream>
 #include <string>
@@ -36,7 +37,7 @@ namespace liboai {
 				static Authorization instance;
 				return instance;
 			}
-			
+
 			/*
 				@brief Sets the authorization key for the OpenAI API
 					as the passed string.
@@ -54,7 +55,7 @@ namespace liboai {
 			*/
 			[[nodiscard]]
 			LIBOAI_EXPORT bool SetAzureKey(std::string_view key) noexcept;
-			
+
 			/*
 				@brief Sets the Active Directory authorization token for the Azure OpenAI API
 					as the passed string.
@@ -112,7 +113,7 @@ namespace liboai {
 			*/
 			[[nodiscard]]
 			LIBOAI_EXPORT bool SetAzureKeyEnv(std::string_view var) noexcept;
-			
+
 			/*
 				@brief Sets the Active Directory authorization token for the Azure OpenAI API
 					as the value stored in the environment variable with
@@ -123,7 +124,7 @@ namespace liboai {
 			*/
 			[[nodiscard]]
 			LIBOAI_EXPORT bool SetAzureKeyEnvAD(std::string_view var) noexcept;
-			
+
 			/*
 				@brief Sets the organization identifier as the passed
 					string for use in component calls.
@@ -155,14 +156,14 @@ namespace liboai {
 			*/
 			[[nodiscard]]
 			LIBOAI_EXPORT bool SetOrganizationEnv(std::string_view var) noexcept;
-			
+
 			/*
 				@brief Sets proxies to use for component calls.
-				@param hosts : The hosts to use as proxies in 
+				@param hosts : The hosts to use as proxies in
 					paired { "protocol", "host" } format.
 			*/
 			LIBOAI_EXPORT void SetProxies(const std::initializer_list<std::pair<const std::string, std::string>>& hosts) noexcept;
-			
+
 			/*
 				@brief Sets proxies to use for component calls.
 				@param hosts : The hosts to use as proxies in
@@ -176,17 +177,17 @@ namespace liboai {
 					paired { "protocol", "host" } format.
 			*/
 			LIBOAI_EXPORT void SetProxies(const std::map<std::string, std::string>& hosts) noexcept;
-			
+
 			/*
 				@brief Sets proxies to use for component calls.
 				@param hosts : The hosts to use as proxies in
 					paired { "protocol", "host" } format.
 			*/
 			LIBOAI_EXPORT void SetProxies(std::map<std::string, std::string>&& hosts) noexcept;
-			
+
 			/*
 				@brief Sets authentication information for proxies per-protocol.
-				
+
 				@param proto_up : A {protocol, {uname, passwd}} map to use for
 					authentication with proxies on a per-protocol basis.
 			*/
@@ -206,17 +207,17 @@ namespace liboai {
 				@brief Returns the currently set organization identifier.
 			*/
 			constexpr const std::string& GetOrganization() const noexcept { return this->org_; }
-			
+
 			/*
 				@returns The currently set proxies.
 			*/
 			netimpl::components::Proxies GetProxies() const noexcept { return this->proxies_; }
-			
+
 			/*
 				@returns The currently set proxy authentication information.
 			*/
 			netimpl::components::ProxyAuthentication GetProxyAuth() const noexcept { return this->proxyAuth_; }
-			
+
 			/*
 				@returns The currently set timeout.
 			*/

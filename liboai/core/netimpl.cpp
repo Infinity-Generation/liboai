@@ -1,9 +1,5 @@
 #include "../include/core/netimpl.h"
 
-#ifdef _WIN32
-#define NOMINMAX
-#endif
-
 liboai::netimpl::CurlHolder::CurlHolder() {
 	std::lock_guard<std::mutex> lock{ this->curl_easy_get_mutex_() };
 
