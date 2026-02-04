@@ -1,11 +1,15 @@
 #include "../include/core/netimpl.h"
 
+#ifdef _WIN32
+#define NOMINMAX
+#endif
+
 liboai::netimpl::CurlHolder::CurlHolder() {
 	std::lock_guard<std::mutex> lock{ this->curl_easy_get_mutex_() };
 
 	if (!_flag) {
 		curl_version_info_data* data = curl_version_info(CURLVERSION_NOW);
-		
+
 		// if curl doesn't have ssl enabled, throw an exception
 		if (!(data->features & CURL_VERSION_SSL)) {
 			throw liboai::exception::OpenAIException(
@@ -26,7 +30,7 @@ liboai::netimpl::CurlHolder::CurlHolder() {
 			#endif
 		}
 	}
-	
+
 	this->curl_ = curl_easy_init();
 	if (!this->curl_) {
 		throw liboai::exception::OpenAIException(
@@ -63,7 +67,7 @@ liboai::netimpl::CurlHolder::~CurlHolder() {
 	if (this->curl_) {
 		curl_easy_cleanup(this->curl_);
 		this->curl_ = nullptr;
-		
+
 		#if defined(LIBOAI_DEBUG)
 			_liboai_dbg(
 				"[dbg] [@%s] curl_easy_cleanup() called.\n",
@@ -73,7 +77,7 @@ liboai::netimpl::CurlHolder::~CurlHolder() {
 	}
 }
 
-liboai::netimpl::Session::~Session() {	
+liboai::netimpl::Session::~Session() {
 	if (this->headers) {
 		curl_slist_free_all(this->headers);
 		this->headers = nullptr;
@@ -85,7 +89,7 @@ liboai::netimpl::Session::~Session() {
 			);
 		#endif
 	}
-	
+
 	#if LIBCURL_VERSION_MAJOR < 7 || (LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR < 56)
 		if (this->form) {
 			curl_formfree(this->form);
@@ -99,7 +103,7 @@ liboai::netimpl::Session::~Session() {
 			#endif
 		}
 	#endif
-	
+
 	#if LIBCURL_VERSION_MAJOR > 7 || (LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 56)
 		if (this->mime) {
 			curl_mime_free(this->mime);
@@ -133,9 +137,9 @@ void liboai::netimpl::Session::Prepare() {
 			__func__, this, this->url_str.c_str()
 		);
 	#endif
-		
+
 	e[0] = curl_easy_setopt(this->curl_, CURLOPT_URL, this->url_.c_str());
-	
+
 	const std::string protocol_socket5_hostname = "socket5_hostname";
 	if (proxies_.has(protocol_socket5_hostname)) {
 		e[1] = curl_easy_setopt(this->curl_, CURLOPT_PROXY, proxies_[protocol_socket5_hostname].c_str());
@@ -150,7 +154,7 @@ void liboai::netimpl::Session::Prepare() {
 		const std::string protocol = url_.substr(0, url_.find(':'));
 		if (proxies_.has(protocol)) {
 			e[1] = curl_easy_setopt(this->curl_, CURLOPT_PROXY, proxies_[protocol].c_str());
-			
+
 			#if defined(LIBOAI_DEBUG)
 				_liboai_dbg(
 					"[dbg] [@%s] Set CURLOPT_PROXY for Session (0x%p) to %s.\n",
@@ -177,7 +181,7 @@ void liboai::netimpl::Session::Prepare() {
 
 	#if LIBCURL_VERSION_MAJOR > 7 || (LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR >= 71)
 		e[6] = curl_easy_setopt(this->curl_, CURLOPT_SSL_OPTIONS, CURLSSLOPT_NATIVE_CA);
-		
+
 		#if defined(LIBOAI_DEBUG)
 			_liboai_dbg(
 				"[dbg] [@%s] Set CURLOPT_SSL_OPTIONS for Session (0x%p) to CURLSSLOPT_NATIVE_CA.\n",
@@ -190,7 +194,7 @@ void liboai::netimpl::Session::Prepare() {
 	if (!this->write_.callback) {
 		e[7] = curl_easy_setopt(this->curl_, CURLOPT_WRITEFUNCTION, liboai::netimpl::components::writeFunction);
 		e[8] = curl_easy_setopt(this->curl_, CURLOPT_WRITEDATA, &this->response_string_);
-		
+
 		#if defined(LIBOAI_DEBUG)
 			_liboai_dbg(
 				"[dbg] [@%s] No user supplied WriteCallback. Set CURLOPT_WRITEFUNCTION and CURLOPT_WRITEDATA for Session (0x%p) to 0x%p and 0x%p.\n",
@@ -223,14 +227,14 @@ void liboai::netimpl::Session::PrepareDownloadInternal() {
 		this->url_ += this->parameter_string_;
 	}
 	this->url_str = this->url_;
-	
+
 	#if defined(LIBOAI_DEBUG)
 		_liboai_dbg(
 			"[dbg] [@%s] Set URL for Session (0x%p) to %s.\n",
 			__func__, this, this->url_str.c_str()
 		);
 	#endif
-	
+
 	e[0] = curl_easy_setopt(this->curl_, CURLOPT_URL, this->url_.c_str());
 
 	const std::string protocol_socket5_hostname = "socket5_hostname";
@@ -252,7 +256,7 @@ void liboai::netimpl::Session::PrepareDownloadInternal() {
 					__func__, this, proxies_[protocol].c_str()
 				);
 			#endif
-			
+
 			if (proxyAuth_.has(protocol)) {
 				e[2] = curl_easy_setopt(this->curl_, CURLOPT_PROXYUSERNAME, proxyAuth_.GetUsername(protocol));
 				e[3] = curl_easy_setopt(this->curl_, CURLOPT_PROXYPASSWORD, proxyAuth_.GetPassword(protocol));
@@ -276,7 +280,7 @@ void liboai::netimpl::Session::PrepareDownloadInternal() {
 			__func__, this, liboai::netimpl::components::writeFunction, &this->header_string_
 		);
 	#endif
-		
+
 	ErrorCheck(e, 7, "liboai::netimpl::Session::PrepareDownloadInternal()");
 }
 
@@ -288,7 +292,7 @@ CURLcode liboai::netimpl::Session::Perform() {
 		);
 	#endif
 
-	CURLcode e = curl_easy_perform(this->curl_);		
+	CURLcode e = curl_easy_perform(this->curl_);
 	ErrorCheck(e, "liboai::netimpl::Session::Perform()");
 	return e;
 }
@@ -303,7 +307,7 @@ liboai::Response liboai::netimpl::Session::BuildResponseObject() {
 			"[dbg] [@%s] Called ParseResponseHeader() for Session (0x%p).\n",
 			__func__, this
 		);
-	#endif	
+	#endif
 
 	// fill status line and reason
 	this->ParseResponseHeader(this->header_string_, &this->status_line, &this->reason);
@@ -313,7 +317,7 @@ liboai::Response liboai::netimpl::Session::BuildResponseObject() {
 			"[dbg] [@%s] Called curl_easy_getinfo() for Session (0x%p) to get status code.\n",
 			__func__, this
 		);
-	#endif	
+	#endif
 
 	// get status code
 	e[0] = curl_easy_getinfo(this->curl_, CURLINFO_RESPONSE_CODE, &this->status_code);
@@ -323,7 +327,7 @@ liboai::Response liboai::netimpl::Session::BuildResponseObject() {
 			"[dbg] [@%s] Called curl_easy_getinfo() for Session (0x%p) to get elapsed time.\n",
 			__func__, this
 		);
-	#endif	
+	#endif
 
 	// get elapsed time
 	e[1] = curl_easy_getinfo(this->curl_, CURLINFO_TOTAL_TIME, &this->elapsed);
@@ -333,7 +337,7 @@ liboai::Response liboai::netimpl::Session::BuildResponseObject() {
 			"[dbg] [@%s] Called curl_easy_getinfo() for Session (0x%p) to get effective url.\n",
 			__func__, this
 		);
-	#endif	
+	#endif
 
 	// get url
 	char* effective_url = nullptr;
@@ -344,7 +348,7 @@ liboai::Response liboai::netimpl::Session::BuildResponseObject() {
 
 	// fill content
 	this->content = this->response_string_;
-	
+
 	#if defined(LIBOAI_DEBUG)
 		_liboai_dbg(
 			"[dbg] [@%s] Constructed response object.\n",
@@ -364,7 +368,7 @@ liboai::Response liboai::netimpl::Session::BuildResponseObject() {
 
 liboai::Response liboai::netimpl::Session::Complete() {
 	this->hasBody = false;
-	
+
 	#if defined(LIBOAI_DEBUG)
 		_liboai_dbg(
 			"[dbg] [@%s] Called BuildResponseObject().\n",
@@ -425,7 +429,7 @@ void liboai::netimpl::Session::PrepareGet() {
 			);
 		#endif
 	}
-	
+
 	ErrorCheck(e, 5, "liboai::netimpl::Session::PrepareGet()");
 
 	#if defined(LIBOAI_DEBUG)
@@ -434,7 +438,7 @@ void liboai::netimpl::Session::PrepareGet() {
 			__func__
 		);
 	#endif
-		
+
 	this->Prepare();
 }
 
@@ -447,14 +451,14 @@ liboai::Response liboai::netimpl::Session::Get() {
 	#endif
 
 	this->PrepareGet();
-	
+
 	#if defined(LIBOAI_DEBUG)
 		_liboai_dbg(
 			"[dbg] [@%s] Called Perform().\n",
 			__func__
 		);
 	#endif
-	
+
 	this->Perform();
 
 	#if defined(LIBOAI_DEBUG)
@@ -463,7 +467,7 @@ liboai::Response liboai::netimpl::Session::Get() {
 			__func__
 		);
 	#endif
-		
+
 	return Complete();
 }
 
@@ -494,7 +498,7 @@ void liboai::netimpl::Session::PreparePost() {
 			);
 		#endif
 	}
-	
+
 	ErrorCheck(e, 4, "liboai::netimpl::Session::PreparePost()");
 
 	#if defined(LIBOAI_DEBUG)
@@ -523,7 +527,7 @@ liboai::Response liboai::netimpl::Session::Post() {
 			__func__
 		);
 	#endif
-	
+
 	Perform();
 
 	#if defined(LIBOAI_DEBUG)
@@ -559,7 +563,7 @@ void liboai::netimpl::Session::PrepareDelete() {
 			"[dbg] [@%s] Called Prepare().\n",
 			__func__
 		);
-	#endif	
+	#endif
 
 	this->Prepare();
 }
@@ -571,9 +575,9 @@ liboai::Response liboai::netimpl::Session::Delete() {
 			__func__
 		);
 	#endif
-		
+
 	this->PrepareDelete();
-	
+
 	#if defined(LIBOAI_DEBUG)
 		_liboai_dbg(
 			"[dbg] [@%s] Called Perform().\n",
@@ -610,7 +614,7 @@ void liboai::netimpl::Session::PrepareDownload(std::ofstream& file) {
 			__func__, this
 		);
 	#endif
-	
+
 	ErrorCheck(e, 5, "liboai::netimpl::Session::PrepareDownload()");
 
 	#if defined(LIBOAI_DEBUG)
@@ -630,7 +634,7 @@ liboai::Response liboai::netimpl::Session::Download(std::ofstream& file) {
 			__func__
 		);
 	#endif
-	
+
 	this->PrepareDownload(file);
 
 	#if defined(LIBOAI_DEBUG)
@@ -639,9 +643,9 @@ liboai::Response liboai::netimpl::Session::Download(std::ofstream& file) {
 			__func__
 		);
 	#endif
-	
+
 	this->Perform();
-	
+
 	#if defined(LIBOAI_DEBUG)
 		_liboai_dbg(
 			"[dbg] [@%s] Called CompleteDownload().\n",
@@ -813,7 +817,7 @@ void liboai::netimpl::Session::SetBody(components::Body&& body) {
 			__func__, this, static_cast<curl_off_t>(body.str().length()), body.c_str()
 		);
 	#endif
-		
+
 	ErrorCheck(e, 2, "liboai::netimpl::Session::SetBody()");
 }
 
@@ -825,7 +829,7 @@ void liboai::netimpl::Session::SetMultipart(const components::Multipart& multipa
 	#if LIBCURL_VERSION_MAJOR < 7 || (LIBCURL_VERSION_MAJOR == 7 && LIBCURL_VERSION_MINOR < 56)
 		CURLFORMcode fe[2]; memset(fe, CURLFORMcode::CURL_FORMADD_OK, sizeof(fe));
 		CURLcode e;
-			
+
 		curl_httppost* lastptr = nullptr;
 
 		for (const auto& part : multipart.parts) {
@@ -846,7 +850,7 @@ void liboai::netimpl::Session::SetMultipart(const components::Multipart& multipa
 
 					// check each file
 					ErrorCheck(f, "liboai::netimpl::Session::SetMultipart() @ is_file[formadd]");
-					
+
 					formdata.clear();
 				}
 			} else if (part.is_buffer) {
@@ -866,7 +870,7 @@ void liboai::netimpl::Session::SetMultipart(const components::Multipart& multipa
 				__func__, this
 			);
 		#endif
-	
+
 		ErrorCheck(fe, 2, "liboai::netimpl::Session::SetMultipart()");
 		ErrorCheck(e, "liboai::netimpl::Session::SetMultipart()");
 
@@ -958,10 +962,10 @@ void liboai::netimpl::Session::SetMultipart(components::Multipart&& multipart) {
 					}
 					formdata.push_back({ CURLFORM_END, nullptr });
 					f = curl_formadd(&this->form, &lastptr, CURLFORM_ARRAY, formdata.data(), CURLFORM_END);
-					
+
 					// check each file
 					ErrorCheck(f, "liboai::netimpl::Session::SetMultipart() @ is_file[formadd]");
-					
+
 					formdata.clear();
 				}
 			}
@@ -1057,7 +1061,7 @@ std::string liboai::netimpl::CurlHolder::urlEncode(const std::string& s) {
 			__func__, s.c_str()
 		);
 	#endif
-	
+
 	char* output = curl_easy_escape(this->curl_, s.c_str(), static_cast<int>(s.length()));
 	if (output) {
 		std::string result = output;
@@ -1074,7 +1078,7 @@ std::string liboai::netimpl::CurlHolder::urlDecode(const std::string& s) {
 			__func__, s.c_str()
 		);
 	#endif
-	
+
 	char* output = curl_easy_unescape(this->curl_, s.c_str(), static_cast<int>(s.length()), nullptr);
 	if (output) {
 		std::string result = output;
@@ -1101,7 +1105,7 @@ size_t liboai::netimpl::components::writeUserFunction(char* ptr, size_t size, si
 			__func__, size * nmemb
 		);
 	#endif
-		
+
 	size *= nmemb;
 	return (*write)({ ptr, size }) ? size : 0;
 }
@@ -1126,7 +1130,7 @@ size_t liboai::netimpl::components::writeFileFunction(char* ptr, size_t size, si
 			__func__, size * nmemb
 		);
 	#endif
-		
+
 	size *= nmemb;
 	file->write(ptr, static_cast<std::streamsize>(size));
 	return size;
@@ -1219,7 +1223,7 @@ bool liboai::netimpl::components::Parameters::Empty() const {
 
 std::string liboai::netimpl::components::Parameters::BuildParameterString() const {
 	std::string parameter_string;
-	
+
 	if (this->parameters_.size() == 1) {
 		parameter_string += this->parameters_.front().key + "=" + this->parameters_.front().value;
 	}
@@ -1246,7 +1250,7 @@ void liboai::netimpl::Session::SetOption(const components::Header& header) {
 
 void liboai::netimpl::Session::SetHeader(const components::Header& header) {
 	CURLcode e;
-	
+
     for (const std::pair<const std::string, std::string>& item : header) {
         std::string header_string = item.first;
         if (item.second.empty()) {
@@ -1333,7 +1337,7 @@ void liboai::netimpl::Session::SetTimeout(const components::Timeout& timeout) {
 			__func__, timeout.Milliseconds()
 		);
 	#endif
-		
+
 	ErrorCheck(e, "liboai::netimpl::Session::SetTimeout()");
 }
 
@@ -1497,7 +1501,7 @@ void liboai::netimpl::components::EncodedAuthentication::SecureStringClear(std::
 	if (s.empty()) {
 		return;
 	}
-	
+
 	char* ptr = &(s[0]);
 	memset(ptr, '\0', s.length());
 	s.clear();

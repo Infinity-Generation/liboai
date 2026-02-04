@@ -13,6 +13,7 @@
 
 #include "../core/authorization.h"
 #include "../core/response.h"
+#include "../core/model_capabilities.h"
 
 #include <limits>
 
@@ -34,7 +35,7 @@ namespace liboai {
 
 			Functions& operator=(const Functions& other);
 			Functions& operator=(Functions&& old) noexcept;
-			
+
 			/*
 				@brief Denotes a parameter of a function, which includes
 				the parameter's name, type, description, and an optional
@@ -69,7 +70,7 @@ namespace liboai {
 
 			/*
 				@brief Adds a function named 'function_name' to the list of
-					functions. This function, once added, can then be 
+					functions. This function, once added, can then be
 					referenced in subsequent 'Functions' class method calls
 					by the name provided here.
 
@@ -145,7 +146,7 @@ namespace liboai {
 			*/
 			[[nodiscard]]
 			LIBOAI_EXPORT bool PopFunctions(std::initializer_list<std::string_view> function_names) & noexcept(false);
-			
+
 			/*
 				@brief Same as PopFunction, but allows for popping multiple
 					functions at once.
@@ -157,7 +158,7 @@ namespace liboai {
 			*/
 			[[nodiscard]]
 			LIBOAI_EXPORT bool PopFunctions(std::vector<std::string> function_names) & noexcept(false);
-			
+
 			/*
 				@brief Same as PopFunction, but allows for popping multiple
 					functions at once.
@@ -175,7 +176,7 @@ namespace liboai {
 
 			/*
 				@brief Sets a previously added function's description.
-				
+
 				@param *target       The name of the function to set the description of.
 				@param *description  The description to set for the function.
 
@@ -250,7 +251,7 @@ namespace liboai {
 				@brief Appends a parameter to a previously set series of required function
 					parameters. This function should only be called if required parameters
 					have already been set for 'target' via SetRequired().
-				
+
 				@param *target   The name of the function to append the required parameter to.
 				@param *param    The name of the parameter to append to the required parameters.
 
@@ -464,14 +465,14 @@ namespace liboai {
 				@brief Returns the JSON object of the internal conversation.
 			*/
 			LIBOAI_EXPORT const nlohmann::json& GetJSON() const & noexcept;
-			
+
 		private:
 			using index = std::size_t;
 			[[nodiscard]] index GetFunctionIndex(std::string_view function_name) const & noexcept(false);
 
 			nlohmann::json _functions;
 	};
-		
+
 	/*
 		@brief Class containing, and used for keeping track of, the chat history.
 			An object of this class should be created, set with system and user data,
@@ -547,6 +548,8 @@ namespace liboai {
 			*/
 			[[nodiscard]]
 			LIBOAI_EXPORT bool SetSystemData(std::string_view data) & noexcept(false);
+			[[nodiscard]]
+			LIBOAI_EXPORT bool SetSystemData(std::string_view data, std::string_view role) & noexcept(false);
 
 			/*
 				@brief Removes the set system data from the top of the conversation.
@@ -625,9 +628,9 @@ namespace liboai {
 
 					It is important to note that, when making use of functions,
 					a developer must call this method to determine whether
-					the response contains a function call or if it contains a 
+					the response contains a function call or if it contains a
 					regular response. If the response contains a function call,
-					
+
 
 				@returns True/False denoting whether the most recent response
 				contains a function_call or not.
@@ -642,18 +645,18 @@ namespace liboai {
 			*/
 			[[nodiscard]]
 			LIBOAI_EXPORT std::string GetLastFunctionCallName() const & noexcept(false);
-			
+
 			/*
 				@brief Returns the arguments of the function_call in the most
 					recent response in their raw JSON form. This should only
 					be called if LastResponseIsFunctionCall() returns true.
 			*/
 			[[nodiscard]]
-			LIBOAI_EXPORT std::string GetLastFunctionCallArguments() const & noexcept(false);			
+			LIBOAI_EXPORT std::string GetLastFunctionCallArguments() const & noexcept(false);
 
 			/*
 				@brief Removes the last assistant response.
-				
+
 				@returns True/False denoting whether the last response was removed.
 			*/
 			[[nodiscard]]
@@ -737,7 +740,7 @@ namespace liboai {
 				@brief Appends stream data (SSEs) from streamed methods.
 					This method updates the conversation given a token from a
 					streamed method. This method should be used when using
-					streamed methods such as ChatCompletion::create or 
+					streamed methods such as ChatCompletion::create or
 					create_async with a callback supplied. This function should
 					be called from within the stream's callback function
 					receiving the SSEs.
@@ -752,7 +755,7 @@ namespace liboai {
 				@brief Appends stream data (SSEs) from streamed methods.
 					This method updates the conversation given a token from a
 					streamed method. This method should be used when using
-					streamed methods such as ChatCompletion::create or 
+					streamed methods such as ChatCompletion::create or
 					create_async with a callback supplied. This function should
 					be called from within the stream's callback function
 					receiving the SSEs.
@@ -769,7 +772,7 @@ namespace liboai {
 					This method sets the functions to be used for the conversation.
 
 					@param *functions      The functions to set.
-					
+
 					@returns True/False denoting whether the functions were set.
 			*/
 			[[nodiscard]]
@@ -803,7 +806,7 @@ namespace liboai {
 				@brief Returns the JSON object of the set functions.
 			*/
 			LIBOAI_EXPORT const nlohmann::json& GetFunctionsJSON() const & noexcept;
-			
+
 			/*
 				@brief Returns whether the conversation has functions or not. this function call from ChatComplete
 			*/
@@ -811,7 +814,7 @@ namespace liboai {
 
 			/**
 			 * @brief Sets the maximum history size for the conversation.
-			 * 
+			 *
 			 * @param size The maximum number of messages allowed in the conversation history.
 			 *             Older messages will be removed when the limit is exceeded.
 			 */
@@ -849,7 +852,7 @@ namespace liboai {
 				@brief Creates a completion for the chat message.
 
 				@param *model            ID of the model to use. Currently,
-				                         only gpt-3.5-turbo and gpt-3.5-turbo-0301 
+				                         only gpt-3.5-turbo and gpt-3.5-turbo-0301
 								 	     are supported.
 				@param *conversation     A Conversation object containing the
 									     conversation data.
@@ -903,6 +906,25 @@ namespace liboai {
 				std::optional<float> presence_penalty = std::nullopt,
 				std::optional<float> frequency_penalty = std::nullopt,
 				std::optional<std::unordered_map<std::string, int8_t>> logit_bias = std::nullopt,
+				std::optional<std::string> user = std::nullopt
+			) const & noexcept(false);
+
+			/*
+				@brief Creates a completion for reasoning models (o1, o3, gpt-5*).
+				@param *model            ID of the model to use.
+				@param *conversation     A Conversation object containing the conversation data.
+				@param reasoning_effort  Reasoning effort: "none", "low", "medium", "high", "xhigh"
+				@param max_tokens        Max tokens (sent as max_completion_tokens for reasoning models).
+				@param stop              Up to 4 stop sequences.
+				@param user              User ID for abuse tracking.
+				@returns A liboai::Response object.
+			*/
+			LIBOAI_EXPORT liboai::Response create(
+				const std::string& model,
+				Conversation& conversation,
+				std::optional<std::string> reasoning_effort,
+				std::optional<uint16_t> max_tokens = std::nullopt,
+				std::optional<std::vector<std::string>> stop = std::nullopt,
 				std::optional<std::string> user = std::nullopt
 			) const & noexcept(false);
 
@@ -966,7 +988,19 @@ namespace liboai {
 				std::optional<std::unordered_map<std::string, int8_t>> logit_bias = std::nullopt,
 				std::optional<std::string> user = std::nullopt
 			) const & noexcept(false);
-			
+
+			/*
+				@brief Async version for reasoning models.
+			*/
+			LIBOAI_EXPORT liboai::FutureResponse create_async(
+				const std::string& model,
+				Conversation& conversation,
+				std::optional<std::string> reasoning_effort,
+				std::optional<uint16_t> max_tokens = std::nullopt,
+				std::optional<std::vector<std::string>> stop = std::nullopt,
+				std::optional<std::string> user = std::nullopt
+			) const & noexcept(false);
+
 		private:
 			Authorization& auth_ = Authorization::Authorizer();
 			using StrippedStreamCallback = std::function<bool(std::string, intptr_t)>;

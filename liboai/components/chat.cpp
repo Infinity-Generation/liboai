@@ -1,4 +1,5 @@
 #include "../include/components/chat.h"
+#include "../include/core/model_capabilities.h"
 
 liboai::Conversation::Conversation() {
 	this->_conversation["messages"] = nlohmann::json::array();
@@ -33,7 +34,7 @@ liboai::Conversation::Conversation(std::string_view system_data, std::string_vie
 liboai::Conversation::Conversation(std::string_view system_data, std::initializer_list<std::string_view> user_data) {
 	this->_conversation["messages"] = nlohmann::json::array();
 	auto result = this->SetSystemData(system_data);
-	
+
 	for (auto& data : user_data) {
 		auto result = this->AddUserData(data);
 	}
@@ -49,7 +50,7 @@ liboai::Conversation::Conversation(std::initializer_list<std::string_view> user_
 
 liboai::Conversation::Conversation(const std::vector<std::string>& user_data) {
 	this->_conversation["messages"] = nlohmann::json::array();
-	
+
 	for (auto& data : user_data) {
 		auto result = this->AddUserData(data);
 	}
@@ -90,8 +91,9 @@ bool liboai::Conversation::SetSystemData(std::string_view data) & noexcept(false
 		// if system is not set already - only one system message shall exist in any
 		// conversation
 		for (auto& message : this->_conversation["messages"].items()) {
-			if (message.value()["role"].get<std::string>() == "system") {
-				return false; // system already set
+			const std::string& role = message.value()["role"].get<std::string>();
+			if (role == "system" || role == "developer") {
+				return false;
 			}
 		}
 		this->_conversation["messages"].push_back({ { "role", "system" }, {"content", data} });
@@ -100,11 +102,29 @@ bool liboai::Conversation::SetSystemData(std::string_view data) & noexcept(false
 	return false; // data is empty
 }
 
+bool liboai::Conversation::SetSystemData(std::string_view data, std::string_view role) & noexcept(false) {
+	if (!data.empty()) {
+		if (role != "system" && role != "developer") {
+			return false;
+		}
+		for (auto& message : this->_conversation["messages"].items()) {
+			const std::string& msg_role = message.value()["role"].get<std::string>();
+			if (msg_role == "system" || msg_role == "developer") {
+				return false;
+			}
+		}
+		this->_conversation["messages"].push_back({ { "role", role }, {"content", data} });
+		return true;
+	}
+	return false;
+}
+
 bool liboai::Conversation::PopSystemData() & noexcept(false) {
 	// if conversation is non-empty
 	if (!this->_conversation["messages"].empty()) {
 		// if first message is system
-		if (this->_conversation["messages"][0]["role"].get<std::string>() == "system") {
+		const std::string& role = this->_conversation["messages"][0]["role"].get<std::string>();
+		if (role == "system" || role == "developer") {
 			this->_conversation["messages"].erase(0);
 			return true; // system message popped successfully
 		}
@@ -195,7 +215,7 @@ std::string liboai::Conversation::GetLastFunctionCallArguments() const & noexcep
 			return this->_conversation["function_call"]["arguments"].get<std::string>();
 		}
 	}
-	
+
 	return "";
 }
 
@@ -220,7 +240,7 @@ bool liboai::Conversation::Update(std::string_view response) & noexcept(false) {
 		}
 		this->_last_resp_is_fc = false;
 	}
-	
+
 	// if response is non-empty
 	if (!response.empty()) {
 		nlohmann::json j = nlohmann::json::parse(response);
@@ -246,13 +266,13 @@ bool liboai::Conversation::Update(std::string_view response) & noexcept(false) {
 								}
 							);
 						}
-						
+
 						if (choice.value()["message"].contains("function_call")) {
 							// if a function_call is present in the response, the
 							// conversation is not updated as there is no assistant
 							// response to be added. However, we do add the function
 							// information
-							
+
 							this->_conversation["function_call"] = nlohmann::json::object();
 							if (choice.value()["message"]["function_call"].contains("name")) {
 								this->_conversation["function_call"]["name"] = choice.value()["message"]["function_call"]["name"];
@@ -260,7 +280,7 @@ bool liboai::Conversation::Update(std::string_view response) & noexcept(false) {
 							if (choice.value()["message"]["function_call"].contains("arguments")) {
 								this->_conversation["function_call"]["arguments"] = choice.value()["message"]["function_call"]["arguments"];
 							}
-							
+
 							this->_last_resp_is_fc = true;
 						}
 
@@ -301,7 +321,7 @@ bool liboai::Conversation::Update(std::string_view response) & noexcept(false) {
 					// conversation is not updated as there is no assistant
 					// response to be added. However, we do add the function
 					// information
-					
+
 					this->_conversation["function_call"] = nlohmann::json::object();
 					if (j["message"]["function_call"].contains("name")) {
 						this->_conversation["function_call"]["name"] = j["message"]["function_call"]["name"];
@@ -338,7 +358,7 @@ bool liboai::Conversation::Update(std::string_view response) & noexcept(false) {
 					}
 				);
 			}
-			
+
 			if (j["message"].contains("function_call")) {
 				// if a function_call is present in the response, the
 				// conversation is not updated as there is no assistant
@@ -370,7 +390,7 @@ bool liboai::Conversation::Update(const Response& response) & noexcept(false) {
 
 std::string liboai::Conversation::Export() const & noexcept(false) {
 	nlohmann::json j;
-	
+
 	if (!this->_conversation.empty()) {
 		j["messages"] = this->_conversation["messages"];
 
@@ -398,10 +418,10 @@ bool liboai::Conversation::Import(std::string_view json) & noexcept(false) {
 
 			return true; // conversation imported successfully
 		}
-		
+
 		return false; // no messages found
 	}
-	
+
 	return false; // json is empty
 }
 
@@ -411,7 +431,7 @@ bool liboai::Conversation::AppendStreamData(std::string data) & noexcept(false) 
 		bool completed = false;
 		return this->ParseStreamData(data, delta, completed);
 	}
-	
+
 	return false; // data is empty
 }
 
@@ -419,19 +439,19 @@ bool liboai::Conversation::AppendStreamData(std::string data, std::string& delta
 	if (!data.empty()) {
 		return this->ParseStreamData(data, delta, completed);
 	}
-	
+
 	return false;
 }
 
 
 bool liboai::Conversation::SetFunctions(Functions functions) & noexcept(false) {
 	nlohmann::json j = functions.GetJSON();
-	
+
 	if (!j.empty() && j.contains("functions") && j["functions"].size() > 0) {
 		this->_functions = std::move(j);
 		return true; // functions set successfully
 	}
-	
+
 	return false; // functions are empty
 }
 
@@ -502,7 +522,7 @@ std::vector<std::string> liboai::Conversation::SplitFullStreamedData(std::string
 	if (data.empty()) {
 		return {};
 	}
-	
+
 	std::vector<std::string> split_data;
 	std::string temp;
 	std::istringstream iss(data);
@@ -532,7 +552,7 @@ bool liboai::Conversation::ParseStreamData(std::string data, std::string& delta_
 	if (data_lines.empty()){
 		return false;
 	}
-	
+
 	// create an empty message at the end of the conversation,
 	// marked as "pending" to indicate that the response is
 	// still being processed. This flag will be removed once
@@ -631,16 +651,30 @@ bool liboai::Conversation::ParseStreamData(std::string data, std::string& delta_
 
 
 liboai::Response liboai::ChatCompletion::create(const std::string& model, Conversation& conversation, std::optional<std::string> function_call, std::optional<float> temperature, std::optional<float> top_p, std::optional<uint16_t> n, std::optional<ChatStreamCallback> stream, std::optional<std::vector<std::string>> stop, std::optional<uint16_t> max_tokens, std::optional<float> presence_penalty, std::optional<float> frequency_penalty, std::optional<std::unordered_map<std::string, int8_t>> logit_bias, std::optional<std::string> user) const& noexcept(false) {
+	const auto caps = GetModelCapabilities(model);
+
 	liboai::JsonConstructor jcon;
 	jcon.push_back("model", model);
-	jcon.push_back("temperature", std::move(temperature));
-	jcon.push_back("top_p", std::move(top_p));
-	jcon.push_back("n", std::move(n));
+
+	if (caps.supports_temperature) {
+		jcon.push_back("temperature", std::move(temperature));
+	}
+	if (caps.supports_sampling_params) {
+		jcon.push_back("top_p", std::move(top_p));
+		jcon.push_back("n", std::move(n));
+		jcon.push_back("presence_penalty", std::move(presence_penalty));
+		jcon.push_back("frequency_penalty", std::move(frequency_penalty));
+		jcon.push_back("logit_bias", std::move(logit_bias));
+	}
+
 	jcon.push_back("stop", std::move(stop));
-	jcon.push_back("max_tokens", std::move(max_tokens));
-	jcon.push_back("presence_penalty", std::move(presence_penalty));
-	jcon.push_back("frequency_penalty", std::move(frequency_penalty));
-	jcon.push_back("logit_bias", std::move(logit_bias));
+
+	if (caps.uses_max_completion_tokens) {
+		jcon.push_back("max_completion_tokens", std::move(max_tokens));
+	} else {
+		jcon.push_back("max_tokens", std::move(max_tokens));
+	}
+
 	jcon.push_back("user", std::move(user));
 
 	if (function_call) {
@@ -667,7 +701,7 @@ liboai::Response liboai::ChatCompletion::create(const std::string& model, Conver
 	if (conversation.GetJSON().contains("messages")) {
 		jcon.push_back("messages", conversation.GetJSON()["messages"]);
 	}
-	
+
 	if (conversation.HasFunctions()) {
 		jcon.push_back("functions", conversation.GetFunctionsJSON()["functions"]);
 	}
@@ -676,10 +710,52 @@ liboai::Response liboai::ChatCompletion::create(const std::string& model, Conver
 	res = this->Request(
 		Method::HTTP_POST, this->openai_root_, "/chat/completions", "application/json",
 		this->auth_.GetAuthorizationHeaders(),
-		netimpl::components::Body {
-			jcon.dump()
-		},
+		netimpl::components::Body { jcon.dump() },
 		_sscb ? netimpl::components::WriteCallback{std::move(_sscb)} : netimpl::components::WriteCallback{},
+		this->auth_.GetProxies(),
+		this->auth_.GetProxyAuth(),
+		this->auth_.GetMaxTimeout()
+	);
+
+	return res;
+}
+
+liboai::Response liboai::ChatCompletion::create(
+	const std::string& model,
+	Conversation& conversation,
+	std::optional<std::string> reasoning_effort,
+	std::optional<uint16_t> max_tokens,
+	std::optional<std::vector<std::string>> stop,
+	std::optional<std::string> user
+) const& noexcept(false) {
+	const auto caps = GetModelCapabilities(model);
+
+	liboai::JsonConstructor jcon;
+	jcon.push_back("model", model);
+
+	if (caps.uses_max_completion_tokens) {
+		jcon.push_back("max_completion_tokens", std::move(max_tokens));
+	} else {
+		jcon.push_back("max_tokens", std::move(max_tokens));
+	}
+
+	if (caps.is_reasoning_model) {
+		jcon.push_back("reasoning_effort", std::move(reasoning_effort));
+	}
+
+	jcon.push_back("stop", std::move(stop));
+	jcon.push_back("user", std::move(user));
+
+	if (conversation.GetJSON().contains("messages")) {
+		jcon.push_back("messages", conversation.GetJSON()["messages"]);
+	}
+
+	Response res;
+	res = this->Request(
+		Method::HTTP_POST, this->openai_root_, "/chat/completions", "application/json",
+		this->auth_.GetAuthorizationHeaders(),
+		netimpl::components::Body { jcon.dump() },
+		netimpl::components::WriteCallback{},
 		this->auth_.GetProxies(),
 		this->auth_.GetProxyAuth(),
 		this->auth_.GetMaxTimeout()
@@ -690,6 +766,34 @@ liboai::Response liboai::ChatCompletion::create(const std::string& model, Conver
 
 liboai::FutureResponse liboai::ChatCompletion::create_async(const std::string& model, Conversation& conversation, std::optional<std::string> function_call, std::optional<float> temperature, std::optional<float> top_p, std::optional<uint16_t> n, std::optional<ChatStreamCallback> stream, std::optional<std::vector<std::string>> stop, std::optional<uint16_t> max_tokens, std::optional<float> presence_penalty, std::optional<float> frequency_penalty, std::optional<std::unordered_map<std::string, int8_t>> logit_bias, std::optional<std::string> user) const& noexcept(false) {
 	return std::async(std::launch::async, &liboai::ChatCompletion::create, this, model, std::ref(conversation), function_call, temperature, top_p, n, stream, stop, max_tokens, presence_penalty, frequency_penalty, logit_bias, user);
+}
+
+liboai::FutureResponse liboai::ChatCompletion::create_async(
+	const std::string& model,
+	Conversation& conversation,
+	std::optional<std::string> reasoning_effort,
+	std::optional<uint16_t> max_tokens,
+	std::optional<std::vector<std::string>> stop,
+	std::optional<std::string> user
+) const& noexcept(false) {
+	return std::async(
+		std::launch::async,
+		static_cast<liboai::Response(liboai::ChatCompletion::*)(
+			const std::string&,
+			Conversation&,
+			std::optional<std::string>,
+			std::optional<uint16_t>,
+			std::optional<std::vector<std::string>>,
+			std::optional<std::string>
+		) const&>(&liboai::ChatCompletion::create),
+		this,
+		model,
+		std::ref(conversation),
+		reasoning_effort,
+		max_tokens,
+		stop,
+		user
+	);
 }
 
 namespace liboai {
@@ -778,10 +882,10 @@ bool liboai::Functions::PopFunctions(std::initializer_list<std::string_view> fun
 				this->_functions["functions"].erase(this->_functions["functions"].begin() + index);
 			}
 		}
-		
+
 		return true; // functions removed
 	}
-	
+
 	return false; // functions not removed (size 0)
 }
 
@@ -802,7 +906,7 @@ bool liboai::Functions::PopFunctions(std::vector<std::string> function_names) & 
 
 bool liboai::Functions::SetDescription(std::string_view target, std::string_view description) & noexcept(false) {
 	index i = this->GetFunctionIndex(target);
-	
+
 	if (i != -1) {
 		if (!this->_functions["functions"][i].contains("description")) {
 			this->_functions["functions"][i]["description"] = description;
@@ -810,7 +914,7 @@ bool liboai::Functions::SetDescription(std::string_view target, std::string_view
 		}
 		return false; // already has a description
 	}
-	
+
 	return false; // function does not exist
 }
 
@@ -824,7 +928,7 @@ bool liboai::Functions::PopDescription(std::string_view target) & noexcept(false
 		}
 		return false; // does not have a description
 	}
-	
+
 	return false; // function does not exist
 }
 
@@ -897,7 +1001,7 @@ bool liboai::Functions::AppendRequired(std::string_view target, std::initializer
 				for (auto& param : params) {
 					this->_functions["functions"][i]["parameters"]["required"].push_back(param);
 				}
-				
+
 				return true; // required parameters appended successfully
 			}
 		}
@@ -932,7 +1036,7 @@ bool liboai::Functions::SetParameter(std::string_view target, FunctionParameter 
 			this->_functions["functions"][i]["parameters"] = nlohmann::json::object();
 			this->_functions["functions"][i]["parameters"]["properties"] = nlohmann::json::object();
 			this->_functions["functions"][i]["parameters"]["type"] = "object";
-			
+
 			this->_functions["functions"][i]["parameters"]["properties"].push_back(
 				{ parameter.name, {
 					{ "type", std::move(parameter.type) },
@@ -1058,7 +1162,7 @@ bool liboai::Functions::PopParameters(std::string_view target, std::vector<std::
 			return true; // parameters removed successfully
 		}
 	}
-	
+
 	return false; // parameters not removed
 }
 
@@ -1158,6 +1262,6 @@ liboai::Functions::index liboai::Functions::GetFunctionIndex(std::string_view fu
 			i++;
 		}
 	}
-	
+
 	return -1;
 }
